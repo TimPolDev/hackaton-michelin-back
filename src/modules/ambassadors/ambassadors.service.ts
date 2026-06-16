@@ -37,7 +37,7 @@ export class AmbassadorsService {
 
     // Calculate stats if showRidingData is true
     return Promise.all(ambassadors.map(async (ambassador) => {
-      let stats = null;
+      let stats: { monthlyDistance: number; totalElevation: number } | null = null;
 
       if (ambassador.showRidingData) {
         const activities = await this.prisma.activity.findMany({
@@ -103,7 +103,7 @@ export class AmbassadorsService {
       return null;
     }
 
-    let stats = null;
+    let stats: { monthlyDistance: number; totalElevation: number } | null = null;
     if (ambassador.showRidingData) {
       const activities = await this.prisma.activity.findMany({
         where: {

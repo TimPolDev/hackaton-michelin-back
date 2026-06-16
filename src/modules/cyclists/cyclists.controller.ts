@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Body, Query } from '@nestjs/common';
 import { CyclistsService } from './cyclists.service';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { UpdateCyclistDto } from './dto/update-cyclist.dto';
 
 @Controller('cyclists')

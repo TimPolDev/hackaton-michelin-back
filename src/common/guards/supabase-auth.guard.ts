@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
+import ws from 'ws';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -18,8 +19,12 @@ export class SupabaseAuthGuard implements CanActivate {
     private configService: ConfigService,
   ) {
     this.supabase = createClient(
-      this.configService.get('SUPABASE_URL'),
-      this.configService.get('SUPABASE_ANON_KEY'),
+      this.configService.get<string>('SUPABASE_URL')!,
+      this.configService.get<string>('SUPABASE_ANON_KEY')!,
+      {
+        auth: { persistSession: false, autoRefreshToken: false },
+        realtime: { transport: ws as unknown as typeof WebSocket },
+      },
     );
   }
 

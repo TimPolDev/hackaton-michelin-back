@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Query, NotFoundException } from '@nestjs/common';
 import { ClubsService } from './clubs.service';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClubDto } from './dto/create-club.dto';
 
@@ -19,6 +20,10 @@ export class ClubsController {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId: user.supabaseUserId },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     return this.clubsService.create(cyclist.id, dto);
   }
@@ -43,6 +48,10 @@ export class ClubsController {
       where: { supabaseUserId: user.supabaseUserId },
     });
 
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
     return this.clubsService.joinClub(cyclist.id, invitationToken);
   }
 
@@ -55,6 +64,10 @@ export class ClubsController {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId: user.supabaseUserId },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     const invitation = await this.clubsService.createInvitation(cyclist.id, clubId, expiresInDays);
 
@@ -73,6 +86,10 @@ export class ClubsController {
       where: { supabaseUserId: user.supabaseUserId },
     });
 
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
     return this.clubsService.getInvitations(clubId, cyclist.id);
   }
 
@@ -85,6 +102,10 @@ export class ClubsController {
       where: { supabaseUserId: user.supabaseUserId },
     });
 
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
     return this.clubsService.revokeInvitation(invitationId, cyclist.id);
   }
 
@@ -96,6 +117,10 @@ export class ClubsController {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId: user.supabaseUserId },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     return this.clubsService.deleteClub(clubId, cyclist.id);
   }

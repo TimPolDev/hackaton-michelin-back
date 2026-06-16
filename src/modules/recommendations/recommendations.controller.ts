@@ -1,6 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, NotFoundException } from '@nestjs/common';
 import { RecommendationsService } from './recommendations.service';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('recommendations')
@@ -18,6 +19,10 @@ export class RecommendationsController {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId: user.supabaseUserId },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     return this.recommendationsService.getRecommendations(cyclist.id, bikeType);
   }

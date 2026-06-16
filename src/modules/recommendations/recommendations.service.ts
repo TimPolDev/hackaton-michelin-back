@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -18,6 +18,10 @@ export class RecommendationsService {
         },
       },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     const targetBikeType = bikeType || cyclist.profile?.primaryBikeType || 'ROAD';
 

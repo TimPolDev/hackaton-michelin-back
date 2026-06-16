@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 
 @Controller('auth')

@@ -1,7 +1,8 @@
-import { Controller, Get, Patch, Param, Body, Query, Post } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, Post, NotFoundException } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { StravaService } from './strava.service';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('activities')
@@ -23,6 +24,10 @@ export class ActivitiesController {
       where: { supabaseUserId: user.supabaseUserId },
     });
 
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
     return this.activitiesService.findAll(cyclist.id, bikeType, limit, offset);
   }
 
@@ -36,6 +41,10 @@ export class ActivitiesController {
       where: { supabaseUserId: user.supabaseUserId },
     });
 
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
     return this.activitiesService.updateBikeType(id, cyclist.id, bikeType);
   }
 
@@ -44,6 +53,10 @@ export class ActivitiesController {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId: user.supabaseUserId },
     });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
 
     if (!cyclist.stravaAccessToken) {
       throw new Error('Strava not connected');
