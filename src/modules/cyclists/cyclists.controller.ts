@@ -2,11 +2,19 @@ import { Controller, Get, Patch, Body, Query } from '@nestjs/common';
 import { CyclistsService } from './cyclists.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { RequireAdmin } from '../../common/decorators/require-admin.decorator';
 import { UpdateCyclistDto } from './dto/update-cyclist.dto';
 
 @Controller('cyclists')
 export class CyclistsController {
   constructor(private readonly cyclistsService: CyclistsService) {}
+
+  // Admin-only endpoint to list all cyclists
+  @RequireAdmin()
+  @Get()
+  async getAllCyclists() {
+    return this.cyclistsService.findAll();
+  }
 
   @Get('me')
   async getCurrentCyclist(@CurrentUser() user: CurrentUserData) {

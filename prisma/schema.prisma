@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,120 +8,83 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================================================
-// CORE USER & AUTH
-// ============================================================================
-// Note: Supabase Auth manages authentication.
-// This table extends Supabase auth.users with business data.
-
 model Cyclist {
-  id                String   @id @default(uuid())
-  supabaseUserId    String   @unique // References auth.users in Supabase
-  email             String   @unique
-  fullName          String?
-  stravaId          String?  @unique
-  stravaAccessToken String?  // Encrypted in production
-  stravaRefreshToken String? // Encrypted in production
-  stravaConnectedAt DateTime?
-  isAdmin           Boolean  @default(false) // Michelin admin flag
-  isAmbassador      Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relations
-  profile           CyclistProfile?
-  bikeTypes         CyclistBikeType[]
-  activities        Activity[]
-  clubMemberships   ClubMembership[]
-  clubsCreated      Club[]            @relation("ClubCreator")
-  invitationsCreated ClubInvitation[] @relation("InvitationCreator")
-  ambassadorProfile AmbassadorProfile?
+  id                   String             @id @default(uuid())
+  supabaseUserId       String             @unique
+  email                String             @unique
+  fullName             String?
+  stravaId             String?            @unique
+  stravaAccessToken    String?
+  stravaRefreshToken   String?
+  stravaConnectedAt    DateTime?
+  isAdmin              Boolean            @default(false)
+  isAmbassador         Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  stravaTokenExpiresAt DateTime?
+  activities           Activity[]
+  ambassadorProfile    AmbassadorProfile?
+  invitationsCreated   ClubInvitation[]   @relation("InvitationCreator")
+  clubMemberships      ClubMembership[]
+  clubsCreated         Club[]             @relation("ClubCreator")
+  bikeTypes            CyclistBikeType[]
+  profile              CyclistProfile?
 
   @@index([supabaseUserId])
   @@index([stravaId])
   @@map("cyclists")
 }
 
-// ============================================================================
-// CYCLIST PROFILE & PREFERENCES
-// ============================================================================
-
 model CyclistProfile {
-  id          String   @id @default(uuid())
-  cyclistId   String   @unique
-  cyclist     Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
-
-  // Practice style
-  practiceStyle String? // leisure, competition, cyclosport, enduro, etc.
-
-  // Declared preferences (used for recommendation weighting)
-  preferGrip       Int @default(5) // 1-10 scale
-  preferEndurance  Int @default(5)
-  preferLightness  Int @default(5)
-  preferVersatility Int @default(5)
-
-  // Primary BikeType (most practiced)
-  primaryBikeType String? // ROAD, MTB, GRAVEL, etc.
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  cyclistId         String   @unique
+  practiceStyle     String?
+  preferGrip        Int      @default(5)
+  preferEndurance   Int      @default(5)
+  preferLightness   Int      @default(5)
+  preferVersatility Int      @default(5)
+  primaryBikeType   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  cyclist           Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
 
   @@map("cyclist_profiles")
 }
 
-// ============================================================================
-// BIKE TYPES
-// ============================================================================
-
 model CyclistBikeType {
-  id          String   @id @default(uuid())
-  cyclistId   String
-  cyclist     Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
-
-  bikeType    String   // ROAD, MTB, GRAVEL, E_BIKE, etc.
-  isPrimary   Boolean  @default(false) // Only one can be primary per cyclist
-
-  // Manual data (if no Strava or to override)
-  manualMonthlyDistance Float? // km
-  manualElevationGain   Float? // m
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  cyclistId             String
+  bikeType              String
+  isPrimary             Boolean  @default(false)
+  manualMonthlyDistance Float?
+  manualElevationGain   Float?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  cyclist               Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
 
   @@unique([cyclistId, bikeType])
   @@index([cyclistId])
   @@map("cyclist_bike_types")
 }
 
-// ============================================================================
-// ACTIVITIES (from Strava or manual)
-// ============================================================================
-
 model Activity {
-  id              String   @id @default(uuid())
-  cyclistId       String
-  cyclist         Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
-
-  stravaId        String?  @unique // If imported from Strava
-
-  bikeType        String   // ROAD, MTB, GRAVEL - can be overridden by user
-  activityDate    DateTime
-  distance        Float    // km
-  elevationGain   Float    // m
-  movingTime      Int      // seconds
-  averageSpeed    Float?   // km/h
-
-  // Terrain classification (derived from Strava or manual)
-  terrainAsphalt     Float @default(0) // % 0-100
-  terrainOffroad     Float @default(0) // % 0-100
-  terrainMixed       Float @default(0) // % 0-100
-
-  // Weather data (optional, from Strava or manual)
-  weatherCondition String? // sunny, rainy, cloudy, etc.
-
-  isManual        Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(uuid())
+  cyclistId        String
+  stravaId         String?  @unique
+  bikeType         String
+  activityDate     DateTime
+  distance         Float
+  elevationGain    Float
+  movingTime       Int
+  averageSpeed     Float?
+  terrainAsphalt   Float    @default(0)
+  terrainOffroad   Float    @default(0)
+  terrainMixed     Float    @default(0)
+  weatherCondition String?
+  isManual         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  cyclist          Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
 
   @@index([cyclistId, bikeType])
   @@index([activityDate])
@@ -132,56 +92,31 @@ model Activity {
   @@map("activities")
 }
 
-// ============================================================================
-// TIRE CATALOG
-// ============================================================================
-
 model Tire {
-  id                String   @id @default(uuid())
-
-  // From Michelin CSV
-  globalId          String   @unique // Global ID from CSV
-  brand             String   // Always "MICHELIN"
-  productType       String   // TYRE, TUBULAR, etc.
-
-  // Core product info
-  rangeName         String   // e.g., "POWER GRAVEL", "WILD ENDURO"
-  webProductName    String   // Full commercial name
-  designation       String   // Technical designation
-
-  // Bike type compatibility (comma-separated from CSV CYCLE TYPE WEB)
-  compatibleBikeTypes String // "ROAD", "GRAVEL,COMMUTING", etc.
-
-  // Use cases (comma-separated from CSV Use column)
-  useCases          String   // "RACING,ENDURANCE", "VERSATILE,TREKKING", etc.
-
-  // Terrain types (comma-separated from CSV Terrain Types)
-  terrainTypes      String   // "ASPHALT", "OFFROAD HARD PACKED,OFFROAD MIXED", etc.
-
-  // Technical characteristics
-  rubberTech        String?  // Rubber Technologies
-  casingTech        String?  // Casing Technologies
-  reinforcementTech String?  // Reinforcement Technologies
-
-  // Physical specs
-  width             Int?     // mm (Web Width)
-  diameter          Int?     // mm (Web Diameter)
-  weight            Int?     // grams
-  minPressure       Float?   // bar
-  maxPressure       Float?   // bar
-
-  // E-bike compatibility
-  isEBikeReady      Boolean  @default(false)
-
-  // Catalog management
-  isDiscontinued    Boolean  @default(false)
-  discontinuedDate  DateTime?
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relations
-  ambassadorTires   AmbassadorTire[]
+  id                  String           @id @default(uuid())
+  globalId            String           @unique
+  brand               String
+  productType         String
+  rangeName           String
+  webProductName      String
+  designation         String
+  compatibleBikeTypes String
+  useCases            String
+  terrainTypes        String
+  rubberTech          String?
+  casingTech          String?
+  reinforcementTech   String?
+  width               Int?
+  diameter            Int?
+  weight              Int?
+  minPressure         Float?
+  maxPressure         Float?
+  isEBikeReady        Boolean          @default(false)
+  isDiscontinued      Boolean          @default(false)
+  discontinuedDate    DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  ambassadorTires     AmbassadorTire[]
 
   @@index([compatibleBikeTypes])
   @@index([useCases])
@@ -189,43 +124,31 @@ model Tire {
   @@map("tires")
 }
 
-// ============================================================================
-// CLUBS
-// ============================================================================
-
 model Club {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-
-  // Club type
-  isMultiBikeType Boolean  @default(true)
-  bikeTypeFilter  String?  // If mono-BikeType club, e.g., "ROAD"
-
-  // Creator becomes first manager
-  creatorId   String
-  creator     Cyclist  @relation("ClubCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  memberships ClubMembership[]
-  invitations ClubInvitation[]
+  id              String           @id @default(uuid())
+  name            String
+  description     String?
+  isMultiBikeType Boolean          @default(true)
+  bikeTypeFilter  String?
+  creatorId       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  invitations     ClubInvitation[]
+  memberships     ClubMembership[]
+  creator         Cyclist          @relation("ClubCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([creatorId])
   @@map("clubs")
 }
 
 model ClubMembership {
-  id          String   @id @default(uuid())
-  clubId      String
-  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  cyclistId   String
-  cyclist     Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
-
-  isManager   Boolean  @default(false)
-  joinedAt    DateTime @default(now())
+  id        String   @id @default(uuid())
+  clubId    String
+  cyclistId String
+  isManager Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  cyclist   Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
 
   @@unique([clubId, cyclistId])
   @@index([clubId])
@@ -234,72 +157,54 @@ model ClubMembership {
 }
 
 model ClubInvitation {
-  id          String    @id @default(uuid())
-  clubId      String
-  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-
-  creatorId   String
-  creator     Cyclist   @relation("InvitationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-
-  token       String    @unique // Used in invitation URL
-  expiresAt   DateTime
-  isRevoked   Boolean   @default(false)
-
-  // Optional usage tracking
-  usageCount  Int       @default(0)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String   @id @default(uuid())
+  clubId     String
+  creatorId  String
+  token      String   @unique
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  club       Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  creator    Cyclist  @relation("InvitationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([clubId])
   @@map("club_invitations")
 }
 
-// ============================================================================
-// AMBASSADORS
-// ============================================================================
-
 model AmbassadorProfile {
-  id              String   @id @default(uuid())
-  cyclistId       String   @unique
-  cyclist         Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
-
-  // Curated content (managed by Michelin admin)
-  bio             String   // Athlete presentation
-  discipline      String   // Road racing, XC MTB, Gravel, etc.
-  skillLevel      String   // Pro, Semi-pro, Elite amateur
-
-  // Optional display data
-  showRidingData  Boolean  @default(false) // Whether to display stats
-  featuredSegments String? // JSON or text describing notable performances
-
-  // Visibility
-  isFeatured      Boolean  @default(false) // Show on homepage
-  displayOrder    Int      @default(0)     // For sorting in gallery
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  tires           AmbassadorTire[]
+  id               String           @id @default(uuid())
+  cyclistId        String           @unique
+  bio              String
+  discipline       String
+  skillLevel       String
+  photoUrl         String?          // Main profile photo URL
+  photos           String[]         @default([]) // Additional photos URLs (gallery)
+  articleContent   String?          // Rich text article content (HTML)
+  showRidingData   Boolean          @default(false)
+  featuredSegments String?
+  isFeatured       Boolean          @default(false)
+  displayOrder     Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  cyclist          Cyclist          @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
+  tires            AmbassadorTire[]
 
   @@map("ambassador_profiles")
 }
 
 model AmbassadorTire {
-  id              String   @id @default(uuid())
-  ambassadorId    String
-  ambassador      AmbassadorProfile @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
-
-  tireId          String
-  tire            Tire     @relation(fields: [tireId], references: [id], onDelete: Cascade)
-
-  bikeType        String   // ROAD, MTB, etc. - one testimonial per BikeType
-  testimonial     String   // Why the ambassador uses this tire
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String            @id @default(uuid())
+  ambassadorId String
+  tireId       String
+  bikeType     String
+  testimonial  String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  ambassador   AmbassadorProfile @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  tire         Tire              @relation(fields: [tireId], references: [id], onDelete: Cascade)
 
   @@unique([ambassadorId, bikeType])
   @@index([ambassadorId])
