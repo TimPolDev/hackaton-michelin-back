@@ -336,7 +336,7 @@ export class ClubsService {
     });
   }
 
-  async deleteClub(clubId: string, cyclistId: string) {
+  async deleteClub(clubId: string, cyclistId: string, isAdmin: boolean = false) {
     const club = await this.prisma.club.findUnique({
       where: { id: clubId },
     });
@@ -345,9 +345,9 @@ export class ClubsService {
       throw new NotFoundException('Club not found');
     }
 
-    // Only creator can delete
-    if (club.creatorId !== cyclistId) {
-      throw new ForbiddenException('Only club creator can delete the club');
+    // Creator or Michelin admin can delete
+    if (club.creatorId !== cyclistId && !isAdmin) {
+      throw new ForbiddenException('Only club creator or Michelin admin can delete the club');
     }
 
     await this.prisma.club.delete({

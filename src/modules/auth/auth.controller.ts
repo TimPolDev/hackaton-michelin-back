@@ -29,4 +29,13 @@ export class AuthController {
       email: user.email,
     };
   }
+
+  @Get('me')
+  async getCurrentUser(@CurrentUser() user: CurrentUserData) {
+    return {
+      supabaseUserId: user.supabaseUserId,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    };
+  }
 }

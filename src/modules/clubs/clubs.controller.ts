@@ -122,6 +122,6 @@ export class ClubsController {
       throw new NotFoundException('Cyclist not found');
     }
 
-    return this.clubsService.deleteClub(clubId, cyclist.id);
+    return this.clubsService.deleteClub(clubId, cyclist.id, user.isAdmin);
   }
 }
