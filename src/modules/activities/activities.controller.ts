@@ -1,4 +1,5 @@
-import { Controller, Get, Patch, Param, Body, Query, Post, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, Post, Delete, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { ActivitiesService } from './activities.service';
 import { StravaService } from './strava.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -48,6 +49,51 @@ export class ActivitiesController {
     return this.activitiesService.updateBikeType(id, cyclist.id, bikeType);
   }
 
+  @Get('strava/authorize-url')
+  async stravaAuthorizeUrl() {
+    // `state` is returned so the frontend can store it and validate the value
+    // echoed back on the OAuth callback (CSRF protection).
+    const state = randomUUID();
+    const url = this.stravaService.getAuthorizationUrl({ state });
+    return { url, state };
+  }
+
+  @Post('connect-strava')
+  async connectStrava(
+    @CurrentUser() user: CurrentUserData,
+    @Body('code') code?: string,
+  ) {
+    const cyclist = await this.prisma.cyclist.findUnique({
+      where: { supabaseUserId: user.supabaseUserId },
+    });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
+    const { athlete, imported } = await this.stravaService.connect(
+      cyclist.id,
+      code ?? 'mock-code',
+    );
+
+    return { connected: true, athlete, imported };
+  }
+
+  @Delete('disconnect-strava')
+  async disconnectStrava(@CurrentUser() user: CurrentUserData) {
+    const cyclist = await this.prisma.cyclist.findUnique({
+      where: { supabaseUserId: user.supabaseUserId },
+    });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
+    await this.stravaService.disconnect(cyclist.id);
+
+    return { connected: false };
+  }
+
   @Post('sync-strava')
   async syncStrava(@CurrentUser() user: CurrentUserData) {
     const cyclist = await this.prisma.cyclist.findUnique({
@@ -58,11 +104,8 @@ export class ActivitiesController {
       throw new NotFoundException('Cyclist not found');
     }
 
-    if (!cyclist.stravaAccessToken) {
-      throw new Error('Strava not connected');
-    }
-
-    const count = await this.stravaService.syncActivities(cyclist.id, cyclist.stravaAccessToken);
+    // sync() refreshes the access token first if it has expired (6h lifetime).
+    const count = await this.stravaService.sync(cyclist.id);
 
     return {
       newActivitiesImported: count,

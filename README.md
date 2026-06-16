@@ -31,6 +31,41 @@
 $ npm install
 ```
 
+## Strava integration (MVP : API mockée)
+
+L'intégration Strava est abstraite derrière `StravaApiClient`
+(`src/modules/activities/strava/`). Deux implémentations existent et sont
+sélectionnées par la variable d'environnement `STRAVA_MOCK` :
+
+- `STRAVA_MOCK=true` → **`MockStravaApiClient`** : aucune connexion réelle, des
+  données au format exact de l'API Strava (cf.
+  https://developers.strava.com/docs/reference/) sont générées de façon
+  déterministe. C'est le mode du MVP.
+- `STRAVA_MOCK=false` → **`RealStravaApiClient`** : appels HTTP réels vers
+  `https://www.strava.com/api/v3` (nécessite `STRAVA_CLIENT_ID` /
+  `STRAVA_CLIENT_SECRET`).
+
+Passer du mock au réel = changer ce seul flag, aucune autre modif de code.
+
+Le flux OAuth 2.0 suit la doc Strava
+(https://developers.strava.com/docs/authentication/) :
+
+1. `GET /activities/strava/authorize-url` → `{ url, state }`. Le front
+   redirige l'utilisateur vers `url` (`https://www.strava.com/oauth/authorize`
+   avec `client_id`, `redirect_uri`, `response_type=code`, `scope`, `state`).
+2. Strava redirige vers `STRAVA_REDIRECT_URI` avec un `code` ; le front le
+   transmet à `POST /activities/connect-strava` `{ code }` → échange du code
+   (`POST https://www.strava.com/oauth/token`), stockage des tokens + expiration
+   (6 h) et import des activités.
+3. `POST /activities/sync-strava` → rafraîchit l'access token si expiré
+   (`grant_type=refresh_token`) puis synchronise les nouvelles activités.
+4. `DELETE /activities/disconnect-strava` → révoque le token côté Strava
+   (`POST /oauth/deauthorize`) puis efface les tokens. Les activités déjà
+   importées sont conservées.
+
+Variables d'env : `STRAVA_MOCK`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`,
+`STRAVA_REDIRECT_URI`, `STRAVA_SCOPE`.
+
 ## Compile and run the project
 
 ```bash
