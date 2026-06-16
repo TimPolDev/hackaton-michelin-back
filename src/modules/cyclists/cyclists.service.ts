@@ -6,6 +6,21 @@ import { UpdateCyclistDto } from './dto/update-cyclist.dto';
 export class CyclistsService {
   constructor(private prisma: PrismaService) {}
 
+  async findAll() {
+    return this.prisma.cyclist.findMany({
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        isAmbassador: true,
+        createdAt: true,
+      },
+      orderBy: {
+        fullName: 'asc',
+      },
+    });
+  }
+
   async findBySupabaseId(supabaseUserId: string) {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId },

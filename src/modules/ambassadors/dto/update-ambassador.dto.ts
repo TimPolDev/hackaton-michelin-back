@@ -1,4 +1,4 @@
-import { IsString, IsBoolean, IsInt, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsBoolean, IsInt, IsOptional, MinLength, IsArray } from 'class-validator';
 
 export class UpdateAmbassadorDto {
   @IsString()
@@ -13,6 +13,19 @@ export class UpdateAmbassadorDto {
   @IsString()
   @IsOptional()
   skillLevel?: string;
+
+  @IsString()
+  @IsOptional()
+  photoUrl?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  photos?: string[];
+
+  @IsString()
+  @IsOptional()
+  articleContent?: string;
 
   @IsBoolean()
   @IsOptional()
