@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service';
 import ws from 'ws';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
@@ -17,6 +18,7 @@ export class SupabaseAuthGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private configService: ConfigService,
+    private prisma: PrismaService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL')!,
@@ -57,10 +59,31 @@ export class SupabaseAuthGuard implements CanActivate {
         throw new UnauthorizedException('Invalid token');
       }
 
+      // Fetch or create cyclist from database
+      let cyclist = await this.prisma.cyclist.findUnique({
+        where: { supabaseUserId: user.id },
+        select: { isAdmin: true },
+      });
+
+      // Auto-create cyclist if doesn't exist (fallback if trigger didn't work)
+      if (!cyclist) {
+        cyclist = await this.prisma.cyclist.create({
+          data: {
+            supabaseUserId: user.id,
+            email: user.email!,
+            fullName: user.user_metadata?.full_name || user.email,
+            isAdmin: false,
+            isAmbassador: false,
+          },
+          select: { isAdmin: true },
+        });
+      }
+
       // Attach user to request
       request.user = {
         supabaseUserId: user.id,
         email: user.email,
+        isAdmin: cyclist.isAdmin,
       };
 
       return true;

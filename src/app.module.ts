@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { AdminGuard } from './common/guards/admin.guard';
 import { CyclistsModule } from './modules/cyclists/cyclists.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TiresModule } from './modules/tires/tires.module';
@@ -45,6 +46,10 @@ import { ActivitiesModule } from './modules/activities/activities.module';
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard, // Global auth guard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AdminGuard, // Global admin guard
     },
     {
       provide: APP_GUARD,
