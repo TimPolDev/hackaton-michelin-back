@@ -23,9 +23,36 @@ export class AmbassadorsController {
   }
 
   @Public()
+  @Get('routes/search')
+  async searchRoutes(
+    @Query('bikeType') bikeType?: string,
+    @Query('minDistance') minDistance?: number,
+    @Query('maxDistance') maxDistance?: number,
+    @Query('minElevation') minElevation?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.ambassadorsService.searchRoutes({
+      bikeType,
+      minDistance: minDistance ? Number(minDistance) : undefined,
+      maxDistance: maxDistance ? Number(maxDistance) : undefined,
+      minElevation: minElevation ? Number(minElevation) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Public()
   @Get(':id')
   async getAmbassador(@Param('id') id: string) {
     return this.ambassadorsService.findOne(id);
+  }
+
+  @Public()
+  @Get(':id/activities')
+  async getAmbassadorActivities(
+    @Param('id') id: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.ambassadorsService.getActivities(id, limit);
   }
 
   @RequireAdmin()
