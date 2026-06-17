@@ -71,7 +71,7 @@ export class RecommendationsService {
       if (monthlyDistance < 200 && tire.useCases.includes('VERSATILE')) score += 20;
 
       // Elevation profile (20% weight)
-      if (avgElevation > 500 && tire.weight && tire.weight < 300) score += 20;
+      if (avgElevation > 500 && tire.minWeight && tire.minWeight < 300) score += 20;
       if (avgElevation < 200 && tire.useCases.includes('SPEED')) score += 15;
 
       // User preferences (10% weight)
