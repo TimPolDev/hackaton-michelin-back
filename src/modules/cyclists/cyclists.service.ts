@@ -24,7 +24,16 @@ export class CyclistsService {
   async findBySupabaseId(supabaseUserId: string) {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        stravaId: true,
+        stravaConnectedAt: true,
+        isAdmin: true,
+        isAmbassador: true,
+        createdAt: true,
+        updatedAt: true,
         profile: true,
         bikeTypes: true,
         clubMemberships: {
