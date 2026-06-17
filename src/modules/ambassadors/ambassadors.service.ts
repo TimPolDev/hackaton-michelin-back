@@ -347,4 +347,124 @@ export class AmbassadorsService {
 
     return { message: 'Tire assignment deleted successfully' };
   }
+
+  async getActivities(ambassadorId: string, limit?: number) {
+    // Get ambassador to verify existence and get cyclist ID
+    const ambassador = await this.prisma.ambassadorProfile.findUnique({
+      where: { id: ambassadorId },
+      include: {
+        cyclist: {
+          select: {
+            id: true,
+            fullName: true,
+            stravaId: true,
+          },
+        },
+      },
+    });
+
+    if (!ambassador) {
+      throw new NotFoundException('Ambassador not found');
+    }
+
+    // Only return activities if ambassador has Strava connected
+    if (!ambassador.cyclist.stravaId) {
+      return {
+        activities: [],
+        total: 0,
+        hasStrava: false,
+      };
+    }
+
+    // Get activities with GPS traces (polyline not null)
+    const activities = await this.prisma.activity.findMany({
+      where: {
+        cyclistId: ambassador.cyclistId,
+        polyline: { not: null }, // Only activities with GPS traces
+      },
+      orderBy: {
+        activityDate: 'desc',
+      },
+      take: limit ? Number(limit) : 20,
+    });
+
+    return {
+      activities,
+      total: activities.length,
+      hasStrava: true,
+      ambassadorName: ambassador.cyclist.fullName,
+    };
+  }
+
+  async searchRoutes(filters?: {
+    bikeType?: string;
+    minDistance?: number;
+    maxDistance?: number;
+    minElevation?: number;
+    limit?: number;
+  }) {
+    // Build where clause for activities
+    const where: any = {
+      polyline: { not: null }, // Only activities with GPS traces
+      cyclist: {
+        isAmbassador: true, // Only ambassador activities
+      },
+    };
+
+    if (filters?.bikeType) {
+      where.bikeType = filters.bikeType;
+    }
+
+    if (filters?.minDistance) {
+      where.distance = { ...where.distance, gte: filters.minDistance };
+    }
+
+    if (filters?.maxDistance) {
+      where.distance = { ...where.distance, lte: filters.maxDistance };
+    }
+
+    if (filters?.minElevation) {
+      where.elevationGain = { gte: filters.minElevation };
+    }
+
+    // Get activities with ambassador info
+    const activities = await this.prisma.activity.findMany({
+      where,
+      include: {
+        cyclist: {
+          select: {
+            id: true,
+            fullName: true,
+            ambassadorProfile: {
+              select: {
+                id: true,
+                photoUrl: true,
+                discipline: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        activityDate: 'desc',
+      },
+      take: filters?.limit || 30,
+    });
+
+    // Format response to include ambassador info at top level
+    const routes = activities.map((activity) => ({
+      ...activity,
+      ambassador: {
+        id: activity.cyclist.ambassadorProfile?.id,
+        name: activity.cyclist.fullName,
+        photoUrl: activity.cyclist.ambassadorProfile?.photoUrl,
+        discipline: activity.cyclist.ambassadorProfile?.discipline,
+      },
+    }));
+
+    return {
+      routes,
+      total: routes.length,
+    };
+  }
 }
