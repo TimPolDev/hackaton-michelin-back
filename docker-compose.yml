@@ -15,3 +15,9 @@ services:
       - /app/node_modules
     command: npm run start:dev
     restart: unless-stopped
+    networks:
+      - michelin-network
+
+networks:
+  michelin-network:
+    external: true
