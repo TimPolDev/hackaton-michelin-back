@@ -232,6 +232,11 @@ export class StravaService {
         stravaActivity.sport_type,
       );
 
+      // Log polyline data for debugging
+      this.logger.debug(
+        `Activity ${stravaActivity.id}: polyline=${stravaActivity.map?.summary_polyline ? 'present' : 'NULL'}, start_latlng=${stravaActivity.start_latlng ? 'present' : 'NULL'}`,
+      );
+
       await this.prisma.activity.create({
         data: {
           cyclistId,
@@ -244,6 +249,10 @@ export class StravaService {
           averageSpeed: stravaActivity.average_speed
             ? stravaActivity.average_speed * 3.6 // m/s to km/h
             : null,
+          // Store polyline and start coordinates for map display
+          polyline: stravaActivity.map?.summary_polyline || null,
+          startLatitude: stravaActivity.start_latlng?.[0] || null,
+          startLongitude: stravaActivity.start_latlng?.[1] || null,
           // Default terrain (could be improved with route analysis)
           terrainAsphalt: bikeType === 'ROAD' ? 100 : 50,
           terrainOffroad:
