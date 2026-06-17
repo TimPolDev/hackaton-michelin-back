@@ -160,6 +160,11 @@ export function generateMockActivities(
     const elapsedTime = movingTime + randInt(rng, 0, Math.round(movingTime * 0.2));
     const id = hashString(`${seed}:activity:${i}:${start.getTime()}`);
 
+    // Generate a simple mock polyline (Paris area for example)
+    const baseLat = 48.8566 + randFloat(rng, -0.05, 0.05);
+    const baseLng = 2.3522 + randFloat(rng, -0.05, 0.05);
+    const mockPolyline = `u{hiH{qM${randInt(rng, 10, 50)}@${randInt(rng, 10, 50)}@${randInt(rng, 10, 50)}@`;
+
     activities.push({
       id,
       name: profile.namePool[randInt(rng, 0, profile.namePool.length - 1)],
@@ -173,6 +178,10 @@ export function generateMockActivities(
       start_date_local: start.toISOString(),
       average_speed: Math.round(avgSpeedMs * 100) / 100,
       max_speed: Math.round(avgSpeedMs * randFloat(rng, 1.3, 1.8) * 100) / 100,
+      map: {
+        summary_polyline: mockPolyline,
+      },
+      start_latlng: [baseLat, baseLng],
     });
   }
 

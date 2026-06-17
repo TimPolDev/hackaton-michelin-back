@@ -9,26 +9,29 @@ datasource db {
 }
 
 model Cyclist {
-  id                   String             @id @default(uuid())
-  supabaseUserId       String             @unique
-  email                String             @unique
-  fullName             String?
-  stravaId             String?            @unique
-  stravaAccessToken    String?
-  stravaRefreshToken   String?
-  stravaConnectedAt    DateTime?
-  isAdmin              Boolean            @default(false)
-  isAmbassador         Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  stravaTokenExpiresAt DateTime?
-  activities           Activity[]
-  ambassadorProfile    AmbassadorProfile?
-  invitationsCreated   ClubInvitation[]   @relation("InvitationCreator")
-  clubMemberships      ClubMembership[]
-  clubsCreated         Club[]             @relation("ClubCreator")
-  bikeTypes            CyclistBikeType[]
-  profile              CyclistProfile?
+  id                      String                    @id @default(uuid())
+  supabaseUserId          String                    @unique
+  email                   String                    @unique
+  fullName                String?
+  stravaId                String?                   @unique
+  stravaAccessToken       String?
+  stravaRefreshToken      String?
+  stravaConnectedAt       DateTime?
+  isAdmin                 Boolean                   @default(false)
+  isAmbassador            Boolean                   @default(false)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  stravaTokenExpiresAt    DateTime?
+  activities              Activity[]
+  ambassadorProfile       AmbassadorProfile?
+  club_event_participants club_event_participants[]
+  club_events             club_events[]
+  invitationsCreated      ClubInvitation[]          @relation("InvitationCreator")
+  clubMemberships         ClubMembership[]
+  club_routes             club_routes[]
+  clubsCreated            Club[]                    @relation("ClubCreator")
+  bikeTypes               CyclistBikeType[]
+  profile                 CyclistProfile?
 
   @@index([supabaseUserId])
   @@index([stravaId])
@@ -77,6 +80,9 @@ model Activity {
   elevationGain    Float
   movingTime       Int
   averageSpeed     Float?
+  polyline         String?  // Encoded polyline from Strava for map display
+  startLatitude    Float?   // Start coordinates
+  startLongitude   Float?
   terrainAsphalt   Float    @default(0)
   terrainOffroad   Float    @default(0)
   terrainMixed     Float    @default(0)
@@ -125,17 +131,22 @@ model Tire {
 }
 
 model Club {
-  id              String           @id @default(uuid())
-  name            String
-  description     String?
-  isMultiBikeType Boolean          @default(true)
-  bikeTypeFilter  String?
-  creatorId       String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  invitations     ClubInvitation[]
-  memberships     ClubMembership[]
-  creator         Cyclist          @relation("ClubCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  id                String           @id @default(uuid())
+  name              String
+  description       String?
+  isMultiBikeType   Boolean          @default(true)
+  bikeTypeFilter    String?
+  creatorId         String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  isMichelinPartner Boolean          @default(false)
+  isPremium         Boolean          @default(false)
+  location          String?
+  club_events       club_events[]
+  invitations       ClubInvitation[]
+  memberships       ClubMembership[]
+  club_routes       club_routes[]
+  creator           Cyclist          @relation("ClubCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@index([creatorId])
   @@map("clubs")
@@ -180,15 +191,15 @@ model AmbassadorProfile {
   bio              String
   discipline       String
   skillLevel       String
-  photoUrl         String?          // Main profile photo URL
-  photos           String[]         @default([]) // Additional photos URLs (gallery)
-  articleContent   String?          // Rich text article content (HTML)
   showRidingData   Boolean          @default(false)
   featuredSegments String?
   isFeatured       Boolean          @default(false)
   displayOrder     Int              @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+  articleContent   String?
+  photoUrl         String?
+  photos           String[]         @default([])
   cyclist          Cyclist          @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
   tires            AmbassadorTire[]
 
@@ -210,4 +221,53 @@ model AmbassadorTire {
   @@index([ambassadorId])
   @@index([tireId])
   @@map("ambassador_tires")
+}
+
+model club_event_participants {
+  id          String      @id
+  eventId     String
+  cyclistId   String
+  joinedAt    DateTime    @default(now())
+  cyclists    Cyclist     @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
+  club_events club_events @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, cyclistId])
+  @@index([cyclistId])
+  @@index([eventId])
+}
+
+model club_events {
+  id                      String                    @id
+  clubId                  String
+  title                   String
+  description             String?
+  discipline              String
+  eventDate               DateTime
+  location                String?
+  createdById             String
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime
+  club_event_participants club_event_participants[]
+  clubs                   Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  cyclists                Cyclist                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([createdById])
+}
+
+model club_routes {
+  id             String   @id
+  clubId         String
+  title          String
+  distanceKm     Float
+  elevationGain  Int
+  discipline     String
+  completedCount Int      @default(0)
+  createdById    String
+  createdAt      DateTime @default(now())
+  clubs          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  cyclists       Cyclist  @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([createdById])
 }

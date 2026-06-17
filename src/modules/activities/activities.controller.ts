@@ -112,4 +112,34 @@ export class ActivitiesController {
       lastSyncDate: new Date(),
     };
   }
+
+  @Delete('reset-activities')
+  async resetActivities(@CurrentUser() user: CurrentUserData) {
+    const cyclist = await this.prisma.cyclist.findUnique({
+      where: { supabaseUserId: user.supabaseUserId },
+    });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
+    // Delete all activities for this cyclist
+    await this.prisma.activity.deleteMany({
+      where: { cyclistId: cyclist.id },
+    });
+
+    // If connected to Strava, reimport all activities
+    if (cyclist.stravaId) {
+      const count = await this.stravaService.sync(cyclist.id);
+      return {
+        deleted: true,
+        reimported: count,
+      };
+    }
+
+    return {
+      deleted: true,
+      reimported: 0,
+    };
+  }
 }

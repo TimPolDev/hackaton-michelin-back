@@ -119,6 +119,13 @@ export class CyclistsService {
       mixed: Math.round((totalMixed / totalTerrain) * 100) / 100,
     } : { asphalt: 0, offroad: 0, mixed: 0 };
 
+    // Get last activity (most recent)
+    const lastActivity = activities.length > 0
+      ? activities.reduce((latest, current) =>
+          current.activityDate > latest.activityDate ? current : latest
+        )
+      : null;
+
     return {
       bikeType,
       period,
@@ -127,6 +134,11 @@ export class CyclistsService {
       activityCount: activities.length,
       averageSpeed: Math.round(averageSpeed * 10) / 10,
       terrainDistribution,
+      lastActivity: lastActivity ? {
+        activityDate: lastActivity.activityDate,
+        distance: lastActivity.distance,
+        bikeType: lastActivity.bikeType,
+      } : null,
     };
   }
 

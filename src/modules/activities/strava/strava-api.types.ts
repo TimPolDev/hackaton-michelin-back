@@ -35,6 +35,11 @@ export interface StravaSummaryActivity {
   start_date_local: string; // ISO 8601 local
   average_speed?: number; // meters per second
   max_speed?: number; // meters per second
+  map?: {
+    id?: string;
+    summary_polyline?: string; // Encoded polyline for map display
+  };
+  start_latlng?: [number, number]; // [latitude, longitude]
 }
 
 /**
