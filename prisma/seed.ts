@@ -2,6 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import csv from 'csv-parser';
+import {
+  generateMockActivities,
+  generateMockAthlete,
+} from '../src/modules/activities/strava/strava-mock.data';
 
 const prisma = new PrismaClient();
 
@@ -150,6 +154,78 @@ async function seedTires() {
   console.log(`   - Total in database: ${imported + updated}\n`);
 }
 
+/** Map a Strava sport_type/type to the app's BikeType (mirrors StravaService). */
+function mapStravaToBikeType(type: string, sportType?: string): string {
+  const key = (sportType || type).toLowerCase();
+  switch (key) {
+    case 'mountainbikeride':
+    case 'mtb':
+      return 'MTB';
+    case 'gravelride':
+    case 'gravel':
+      return 'GRAVEL';
+    case 'ebikeride':
+    case 'emountainbikeride':
+      return 'E_BIKE';
+    default:
+      return 'ROAD';
+  }
+}
+
+/**
+ * Pre-connect the demo cyclist to the mocked Strava API and persist their
+ * activities. Uses the same deterministic generator as MockStravaApiClient,
+ * and the same unit conversions / terrain defaults as StravaService.
+ */
+async function seedDemoStravaActivities(cyclistId: string) {
+  const athlete = generateMockAthlete('mock-code');
+  const accessToken = `mock_access_${athlete.id}`;
+
+  const expiresIn = 6 * 60 * 60; // 6h, like Strava
+  await prisma.cyclist.update({
+    where: { id: cyclistId },
+    data: {
+      stravaId: athlete.id.toString(),
+      stravaAccessToken: accessToken,
+      stravaRefreshToken: `mock_refresh_${athlete.id}`,
+      stravaTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+      stravaConnectedAt: new Date(),
+    },
+  });
+
+  // Same seed convention as MockStravaApiClient.getActivities so the stravaIds
+  // match what a runtime connect would produce (dedup stays consistent).
+  const activities = generateMockActivities(`athlete_${athlete.id}`, {
+    now: new Date(),
+  });
+  let imported = 0;
+
+  for (const a of activities) {
+    const bikeType = mapStravaToBikeType(a.type, a.sport_type);
+    await prisma.activity.upsert({
+      where: { stravaId: a.id.toString() },
+      update: {},
+      create: {
+        cyclistId,
+        stravaId: a.id.toString(),
+        bikeType,
+        activityDate: new Date(a.start_date),
+        distance: a.distance / 1000, // m -> km
+        elevationGain: a.total_elevation_gain,
+        movingTime: a.moving_time,
+        averageSpeed: a.average_speed ? a.average_speed * 3.6 : null, // m/s -> km/h
+        terrainAsphalt: bikeType === 'ROAD' ? 100 : 50,
+        terrainOffroad: bikeType === 'MTB' ? 100 : bikeType === 'GRAVEL' ? 50 : 0,
+        terrainMixed: bikeType === 'GRAVEL' ? 50 : 0,
+        isManual: false,
+      },
+    });
+    imported++;
+  }
+
+  console.log(`✅ Imported ${imported} mock Strava activities for demo cyclist\n`);
+}
+
 async function seedDemoData() {
   console.log('🌱 Seeding demo data...\n');
 
@@ -201,6 +277,10 @@ async function seedDemoData() {
   });
 
   console.log(`✅ Created demo cyclist: ${demoCyclist.email}\n`);
+
+  // Pre-connect the demo cyclist to (mocked) Strava and import activities so
+  // the dashboard / recommendations are populated out of the box.
+  await seedDemoStravaActivities(demoCyclist.id);
 
   // Create a demo club
   const demoClub = await prisma.club.create({
