@@ -56,6 +56,14 @@ export class AmbassadorsController {
   }
 
   @RequireAdmin()
+  @Get(':id/activities/all')
+  async getAllAmbassadorActivities(
+    @Param('id') id: string,
+  ) {
+    return this.ambassadorsService.getAllActivities(id);
+  }
+
+  @RequireAdmin()
   @Post()
   async createAmbassador(@Body() createAmbassadorDto: CreateAmbassadorDto) {
     return this.ambassadorsService.create(createAmbassadorDto);
@@ -93,5 +101,16 @@ export class AmbassadorsController {
     @Param('tireId') tireId: string,
   ) {
     return this.ambassadorsService.removeTire(ambassadorId, tireId);
+  }
+
+  // Activity featured status endpoints
+  @RequireAdmin()
+  @Put(':id/activities/:activityId/featured')
+  async toggleActivityFeatured(
+    @Param('id') ambassadorId: string,
+    @Param('activityId') activityId: string,
+    @Body() body: { isFeatured: boolean },
+  ) {
+    return this.ambassadorsService.toggleActivityFeatured(ambassadorId, activityId, body.isFeatured);
   }
 }
