@@ -88,6 +88,7 @@ model Activity {
   terrainMixed     Float    @default(0)
   weatherCondition String?
   isManual         Boolean  @default(false)
+  isFeatured       Boolean  @default(false) // For ambassadors to feature routes
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   cyclist          Cyclist  @relation(fields: [cyclistId], references: [id], onDelete: Cascade)
@@ -95,6 +96,7 @@ model Activity {
   @@index([cyclistId, bikeType])
   @@index([activityDate])
   @@index([stravaId])
+  @@index([cyclistId, isFeatured])
   @@map("activities")
 }
 

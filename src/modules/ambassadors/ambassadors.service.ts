@@ -376,11 +376,12 @@ export class AmbassadorsService {
       };
     }
 
-    // Get activities with GPS traces (polyline not null)
+    // Get activities with GPS traces (polyline not null) and featured status
     const activities = await this.prisma.activity.findMany({
       where: {
         cyclistId: ambassador.cyclistId,
         polyline: { not: null }, // Only activities with GPS traces
+        isFeatured: true, // Only featured activities
       },
       orderBy: {
         activityDate: 'desc',
@@ -406,6 +407,7 @@ export class AmbassadorsService {
     // Build where clause for activities
     const where: any = {
       polyline: { not: null }, // Only activities with GPS traces
+      isFeatured: true, // Only featured activities
       cyclist: {
         isAmbassador: true, // Only ambassador activities
       },
@@ -466,5 +468,84 @@ export class AmbassadorsService {
       routes,
       total: routes.length,
     };
+  }
+
+  async getAllActivities(ambassadorId: string) {
+    // Get ambassador to verify existence and get cyclist ID
+    const ambassador = await this.prisma.ambassadorProfile.findUnique({
+      where: { id: ambassadorId },
+      include: {
+        cyclist: {
+          select: {
+            id: true,
+            fullName: true,
+            stravaId: true,
+          },
+        },
+      },
+    });
+
+    if (!ambassador) {
+      throw new NotFoundException('Ambassador not found');
+    }
+
+    // Only return activities if ambassador has Strava connected
+    if (!ambassador.cyclist.stravaId) {
+      return {
+        activities: [],
+        total: 0,
+        hasStrava: false,
+      };
+    }
+
+    // Get ALL activities with GPS traces (without featured filter)
+    const activities = await this.prisma.activity.findMany({
+      where: {
+        cyclistId: ambassador.cyclistId,
+        polyline: { not: null }, // Only activities with GPS traces
+      },
+      orderBy: {
+        activityDate: 'desc',
+      },
+    });
+
+    return {
+      activities,
+      total: activities.length,
+      hasStrava: true,
+      ambassadorName: ambassador.cyclist.fullName,
+    };
+  }
+
+  async toggleActivityFeatured(ambassadorId: string, activityId: string, isFeatured: boolean) {
+    // Verify ambassador exists
+    const ambassador = await this.prisma.ambassadorProfile.findUnique({
+      where: { id: ambassadorId },
+    });
+
+    if (!ambassador) {
+      throw new NotFoundException('Ambassador not found');
+    }
+
+    // Verify activity exists and belongs to the ambassador
+    const activity = await this.prisma.activity.findUnique({
+      where: { id: activityId },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+
+    if (activity.cyclistId !== ambassador.cyclistId) {
+      throw new ConflictException('Activity does not belong to this ambassador');
+    }
+
+    // Update activity featured status
+    const updatedActivity = await this.prisma.activity.update({
+      where: { id: activityId },
+      data: { isFeatured },
+    });
+
+    return updatedActivity;
   }
 }
