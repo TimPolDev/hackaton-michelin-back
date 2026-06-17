@@ -100,36 +100,79 @@ model Activity {
   @@map("activities")
 }
 
+// A Tire is a product MODEL (one per Global ID). Its physical declinations
+// (sizes, weights, pressures, EAN…) live in TireVariant.
 model Tire {
   id                  String           @id @default(uuid())
   globalId            String           @unique
+
+  // --- Product identity (constant within a Global ID) ---
   brand               String
-  productType         String
-  rangeName           String
-  webProductName      String
-  designation         String
-  compatibleBikeTypes String
-  useCases            String
-  terrainTypes        String
+  productType         String // TYRE | TUBE | TUBULAR
+  cycleType           String // MTB | ROAD | CITY
+  segment             String
+  rangeName           String // "Web Range Name" (web)
+  rangeInternal       String // "Range (Internal)" (internal)
+  compatibleBikeTypes String // "CYCLE TYPE WEB"
+  useCases            String // "Use"
+
+  // --- Product technologies ---
   rubberTech          String?
   casingTech          String?
-  reinforcementTech   String?
-  width               Int?
-  diameter            Int?
-  weight              Int?
-  minPressure         Float?
-  maxPressure         Float?
+  treadPatternTech    String?
+  sidewallType        String?
+  sealing             String?
+  rimType             String?
+  fitting             String?
+
+  // --- Denormalized aggregates (computed at seed time from variants) ---
+  terrainTypes        String // union of all variant terrains
+  minWeight           Int? // lightest variant weight
   isEBikeReady        Boolean          @default(false)
-  isDiscontinued      Boolean          @default(false)
-  discontinuedDate    DateTime?
+  isDiscontinued      Boolean          @default(false) // true only if all variants are discontinued
+
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
+  variants            TireVariant[]
   ambassadorTires     AmbassadorTire[]
 
   @@index([compatibleBikeTypes])
   @@index([useCases])
   @@index([terrainTypes])
   @@map("tires")
+}
+
+// A physical declination of a Tire product: a specific size / build.
+model TireVariant {
+  id                   String    @id @default(uuid())
+  tireId               String
+  tire                 Tire      @relation(fields: [tireId], references: [id], onDelete: Cascade)
+
+  designation          String // "Designation (Internal)" (internal)
+  webProductName       String // "Web Product Designation" (web)
+  bead                 String?
+  eanCode              String?
+  widthEtrto           String?
+  diameterEtrto        String?
+  widthMm              Int? // "Web Width (mm)"
+  diameterMm           Int? // "Web Diameter (mm)"
+  weight               Int?
+  minPressure          Float?
+  maxPressure          Float?
+  tpi                  String?
+  terrainTypes         String // exact terrains for this variant
+  reinforcementTech    String?
+  sidewallColor        String?
+  treadPatternColor    String?
+  recommendedInnerTube String?
+  discontinuedDate     DateTime?
+  isDiscontinued       Boolean   @default(false)
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([tireId])
+  @@map("tire_variants")
 }
 
 model Club {

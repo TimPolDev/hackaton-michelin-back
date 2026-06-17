@@ -30,12 +30,18 @@ export class TiresService {
     if (filters?.search) {
       where.OR = [
         { rangeName: { contains: filters.search, mode: 'insensitive' } },
-        { webProductName: { contains: filters.search, mode: 'insensitive' } },
+        {
+          variants: {
+            some: {
+              webProductName: { contains: filters.search, mode: 'insensitive' },
+            },
+          },
+        },
       ];
     }
 
     const [tires, total] = await Promise.all([
-      this.prisma.tire.findMany({ where }),
+      this.prisma.tire.findMany({ where, include: { variants: true } }),
       this.prisma.tire.count({ where }),
     ]);
 
@@ -43,6 +49,9 @@ export class TiresService {
   }
 
   async findOne(id: string) {
-    return this.prisma.tire.findUnique({ where: { id } });
+    return this.prisma.tire.findUnique({
+      where: { id },
+      include: { variants: true },
+    });
   }
 }

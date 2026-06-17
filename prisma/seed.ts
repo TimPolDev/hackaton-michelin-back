@@ -10,6 +10,7 @@ import {
 const prisma = new PrismaClient();
 
 interface TireCSVRow {
+  // Product-level columns (constant within a Global ID)
   'Global ID': string;
   Brand: string;
   'Product Type': string;
@@ -17,20 +18,34 @@ interface TireCSVRow {
   Segment: string;
   'Range (Internal)': string;
   'Web Range Name': string;
-  'Web Product Designation': string;
-  'Designation (Internal)': string;
-  'Web Diameter (mm)': string;
-  'Web Width (mm)': string;
-  'Weight (g)': string;
-  'Minimum Pressure (Bar)': string;
-  'Maximum Pressure (Bar)': string;
-  'Terrain Types': string;
+  'CYCLE TYPE WEB': string;
   Use: string;
   'Rubber Technologies': string;
   'Casing Technologies': string;
-  'Reinforcement Technologies': string;
+  'Tread Pattern Technologies': string;
+  'Sidewall Type': string;
+  Sealing: string;
+  'Rim Type': string;
+  Fitting: string;
   'E-Bike Technologies': string;
-  'CYCLE TYPE WEB': string;
+  // Variant-level columns (vary within a Global ID)
+  'Designation (Internal)': string;
+  'Web Product Designation': string;
+  Bead: string;
+  'EAN Code': string;
+  'Width ETRTO': string;
+  'Diameter ETRTO': string;
+  'Web Width (mm)': string;
+  'Web Diameter (mm)': string;
+  'Weight (g)': string;
+  'Minimum Pressure (Bar)': string;
+  'Maximum Pressure (Bar)': string;
+  TPI: string;
+  'Terrain Types': string;
+  'Reinforcement Technologies': string;
+  'Sidewall Color': string;
+  'Tread Pattern Color': string;
+  'Recommended Inner Tube': string;
   'Discontinued Date': string;
 }
 
@@ -74,84 +89,137 @@ function parseDate(value: string | undefined | null): Date | null {
   return new Date(year, month, 1);
 }
 
+/** Trim a CSV cell, returning null for empty / placeholder values. */
+function parseString(value: string | undefined | null): string | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  if (trimmed === '' || trimmed === 'NOT APPLICABLE' || trimmed === '-') return null;
+  return trimmed;
+}
+
+/** Round a parsed number to an integer, or null. */
+function parseInteger(value: string | undefined | null): number | null {
+  const parsed = parseNumber(value);
+  return parsed === null ? null : Math.round(parsed);
+}
+
+/** Union of comma-separated terrain values across every variant, deduplicated. */
+function aggregateTerrains(rows: TireCSVRow[]): string {
+  const set = new Set<string>();
+  for (const row of rows) {
+    for (const part of (row['Terrain Types'] || '').split(',')) {
+      const t = part.trim();
+      if (t) set.add(t);
+    }
+  }
+  return Array.from(set).join(',');
+}
+
 async function seedTires() {
   console.log('📦 Starting tire catalog import...\n');
 
+  // Idempotent re-seed: variants cascade-delete with their parent tires.
+  await prisma.tire.deleteMany({});
+
   const rows = await parseTireCSV();
-  console.log(`Found ${rows.length} tires in CSV\n`);
+  console.log(`Found ${rows.length} catalog rows in CSV\n`);
+
+  // Group rows by Global ID — same Global ID = same product, different variants.
+  const groups = new Map<string, TireCSVRow[]>();
+  for (const row of rows) {
+    const globalId = (row['Global ID'] || '').trim();
+    if (!globalId) continue;
+    const group = groups.get(globalId);
+    if (group) group.push(row);
+    else groups.set(globalId, [row]);
+  }
 
   let imported = 0;
-  let updated = 0;
+  let variantCount = 0;
   let skipped = 0;
+  const now = new Date();
 
-  for (const row of rows) {
+  for (const [globalId, variants] of groups) {
     try {
-      const globalId = row['Global ID'];
-      if (!globalId || globalId === '') {
-        skipped++;
-        continue;
-      }
+      const head = variants[0];
+      const cycleTypeWeb = head['CYCLE TYPE WEB'] || head['Cycle Type'] || 'UNKNOWN';
+      const isEBikeReady =
+        cycleTypeWeb.includes('E-BIKE') ||
+        variants.some((v) => parseString(v['E-Bike Technologies']) !== null);
 
-      const cycleTypeWeb = row['CYCLE TYPE WEB'] || row['Cycle Type'] || 'UNKNOWN';
-      const isEBikeReady = (row['E-Bike Technologies'] && row['E-Bike Technologies'] !== '') ||
-                           cycleTypeWeb.includes('E-BIKE');
-
-      const discontinuedDate = parseDate(row['Discontinued Date']);
-
-      const tireData = {
-        globalId,
-        brand: row.Brand || 'MICHELIN',
-        productType: row['Product Type'] || '',
-        rangeName: row['Web Range Name'] || row['Range (Internal)'] || '',
-        webProductName: row['Web Product Designation'] || '',
-        designation: row['Designation (Internal)'] || '',
-        compatibleBikeTypes: cycleTypeWeb,
-        useCases: row.Use || '',
-        terrainTypes: row['Terrain Types'] || '',
-        rubberTech: row['Rubber Technologies'] || null,
-        casingTech: row['Casing Technologies'] || null,
-        reinforcementTech: row['Reinforcement Technologies'] || null,
-        width: parseNumber(row['Web Width (mm)']),
-        diameter: parseNumber(row['Web Diameter (mm)']),
-        weight: parseNumber(row['Weight (g)']),
-        minPressure: parseNumber(row['Minimum Pressure (Bar)']),
-        maxPressure: parseNumber(row['Maximum Pressure (Bar)']),
-        isEBikeReady,
-        isDiscontinued: discontinuedDate !== null && discontinuedDate < new Date(),
-        discontinuedDate,
-      };
-
-      const existing = await prisma.tire.findUnique({
-        where: { globalId },
+      // Variant-level rows
+      const variantData = variants.map((v) => {
+        const discontinuedDate = parseDate(v['Discontinued Date']);
+        return {
+          designation: v['Designation (Internal)'] || '',
+          webProductName: v['Web Product Designation'] || '',
+          bead: parseString(v.Bead),
+          eanCode: parseString(v['EAN Code']),
+          widthEtrto: parseString(v['Width ETRTO']),
+          diameterEtrto: parseString(v['Diameter ETRTO']),
+          widthMm: parseInteger(v['Web Width (mm)']),
+          diameterMm: parseInteger(v['Web Diameter (mm)']),
+          weight: parseInteger(v['Weight (g)']),
+          minPressure: parseNumber(v['Minimum Pressure (Bar)']),
+          maxPressure: parseNumber(v['Maximum Pressure (Bar)']),
+          tpi: parseString(v.TPI),
+          terrainTypes: v['Terrain Types'] || '',
+          reinforcementTech: parseString(v['Reinforcement Technologies']),
+          sidewallColor: parseString(v['Sidewall Color']),
+          treadPatternColor: parseString(v['Tread Pattern Color']),
+          recommendedInnerTube: parseString(v['Recommended Inner Tube']),
+          discontinuedDate,
+          isDiscontinued: discontinuedDate !== null && discontinuedDate < now,
+        };
       });
 
-      if (existing) {
-        await prisma.tire.update({
-          where: { globalId },
-          data: tireData,
-        });
-        updated++;
-      } else {
-        await prisma.tire.create({
-          data: tireData,
-        });
-        imported++;
-      }
+      // Product-level aggregates
+      const weights = variantData
+        .map((v) => v.weight)
+        .filter((w): w is number => w !== null);
+      const minWeight = weights.length ? Math.min(...weights) : null;
 
-      if ((imported + updated) % 50 === 0) {
-        console.log(`Processed ${imported + updated} tires...`);
+      await prisma.tire.create({
+        data: {
+          globalId,
+          brand: head.Brand || 'MICHELIN',
+          productType: head['Product Type'] || '',
+          cycleType: head['Cycle Type'] || '',
+          segment: head.Segment || '',
+          rangeName: head['Web Range Name'] || head['Range (Internal)'] || '',
+          rangeInternal: head['Range (Internal)'] || '',
+          compatibleBikeTypes: cycleTypeWeb,
+          useCases: head.Use || '',
+          rubberTech: parseString(head['Rubber Technologies']),
+          casingTech: parseString(head['Casing Technologies']),
+          treadPatternTech: parseString(head['Tread Pattern Technologies']),
+          sidewallType: parseString(head['Sidewall Type']),
+          sealing: parseString(head.Sealing),
+          rimType: parseString(head['Rim Type']),
+          fitting: parseString(head.Fitting),
+          terrainTypes: aggregateTerrains(variants),
+          minWeight,
+          isEBikeReady,
+          isDiscontinued: variantData.every((v) => v.isDiscontinued),
+          variants: { create: variantData },
+        },
+      });
+
+      imported++;
+      variantCount += variantData.length;
+      if (imported % 25 === 0) {
+        console.log(`Processed ${imported} products...`);
       }
     } catch (error) {
-      console.error(`Error processing tire ${row['Global ID']}:`, error);
+      console.error(`Error processing product ${globalId}:`, error);
       skipped++;
     }
   }
 
   console.log('\n✅ Tire catalog import complete!');
-  console.log(`   - Imported: ${imported}`);
-  console.log(`   - Updated: ${updated}`);
-  console.log(`   - Skipped: ${skipped}`);
-  console.log(`   - Total in database: ${imported + updated}\n`);
+  console.log(`   - Products imported: ${imported}`);
+  console.log(`   - Variants imported: ${variantCount}`);
+  console.log(`   - Skipped: ${skipped}\n`);
 }
 
 /** Map a Strava sport_type/type to the app's BikeType (mirrors StravaService). */
