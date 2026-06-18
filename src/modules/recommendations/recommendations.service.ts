@@ -70,15 +70,9 @@ export class RecommendationsService {
       const monthlyDistance = this.calculateMonthlyDistance(activities, totalDistance);
       const useCaseScore = this.calculateUseCaseScore(tire.useCases, monthlyDistance);
       score += useCaseScore * 30;
-
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       // Elevation profile (20% weight)
       if (avgElevation > 500 && tire.minWeight && tire.minWeight < 300) score += 20;
       if (avgElevation < 200 && tire.useCases.includes('SPEED')) score += 15;
-=======
-=======
->>>>>>> Stashed changes
       // Elevation profile (15% weight)
       const elevationScore = this.calculateElevationScore(tire, avgElevation);
       score += elevationScore * 15;
