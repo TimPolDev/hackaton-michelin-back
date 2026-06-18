@@ -59,26 +59,31 @@ export class RecommendationsService {
     const scoredTires = tires.map(tire => {
       let score = 0;
 
-      // Terrain matching (40% weight)
-      if (tire.terrainTypes.includes('ASPHALT') && terrainProfile.asphalt > 0.5) score += 40;
-      if (tire.terrainTypes.includes('OFFROAD') && terrainProfile.offroad > 0.5) score += 40;
-      if (tire.terrainTypes.includes('MIXED') && terrainProfile.mixed > 0.3) score += 30;
+      // Base compatibility score (10 points for being compatible with bike type)
+      score += 10;
+
+      // Terrain matching (40% weight) - Progressive scoring
+      const terrainScore = this.calculateTerrainScore(tire.terrainTypes, terrainProfile);
+      score += terrainScore * 40;
 
       // Use case matching (30% weight)
-      const monthlyDistance = totalDistance / Math.max(1, activities.length / 30);
-      if (monthlyDistance > 300 && tire.useCases.includes('RACING')) score += 30;
-      if (monthlyDistance > 200 && tire.useCases.includes('ENDURANCE')) score += 25;
-      if (monthlyDistance < 200 && tire.useCases.includes('VERSATILE')) score += 20;
+      const monthlyDistance = this.calculateMonthlyDistance(activities, totalDistance);
+      const useCaseScore = this.calculateUseCaseScore(tire.useCases, monthlyDistance);
+      score += useCaseScore * 30;
 
+<<<<<<< Updated upstream
       // Elevation profile (20% weight)
       if (avgElevation > 500 && tire.minWeight && tire.minWeight < 300) score += 20;
       if (avgElevation < 200 && tire.useCases.includes('SPEED')) score += 15;
+=======
+      // Elevation profile (15% weight)
+      const elevationScore = this.calculateElevationScore(tire, avgElevation);
+      score += elevationScore * 15;
+>>>>>>> Stashed changes
 
-      // User preferences (10% weight)
-      if (cyclist.profile) {
-        if (cyclist.profile.preferGrip > 7 && tire.rubberTech?.includes('GUM-X')) score += 5;
-        if (cyclist.profile.preferEndurance > 7 && tire.useCases.includes('ENDURANCE')) score += 5;
-      }
+      // User preferences (15% weight)
+      const preferenceScore = this.calculatePreferenceScore(tire, cyclist.profile);
+      score += preferenceScore * 15;
 
       return { tire, score };
     });
@@ -179,5 +184,191 @@ export class RecommendationsService {
       tire: ambassadorTire.tire.rangeName,
       testimonial: ambassadorTire.testimonial,
     };
+  }
+
+  /**
+   * Calculate terrain match score (0-1 scale)
+   * Progressive scoring based on actual terrain distribution
+   */
+  private calculateTerrainScore(tireTerrainTypes: string, terrainProfile: any): number {
+    let score = 0;
+    let matchCount = 0;
+
+    // Check each terrain type and calculate progressive match
+    if (tireTerrainTypes.includes('ASPHALT')) {
+      score += terrainProfile.asphalt;
+      matchCount++;
+    }
+    if (tireTerrainTypes.includes('OFFROAD')) {
+      score += terrainProfile.offroad;
+      matchCount++;
+    }
+    if (tireTerrainTypes.includes('MIXED')) {
+      // Mixed terrain bonus if user has balanced riding
+      const isBalanced = Math.min(terrainProfile.asphalt, terrainProfile.offroad) > 0.2;
+      score += isBalanced ? 0.8 : terrainProfile.mixed;
+      matchCount++;
+    }
+
+    // If tire supports multiple terrains and user rides on multiple terrains, bonus
+    if (matchCount > 1) {
+      const userTerrainVariety = (terrainProfile.asphalt > 0.2 ? 1 : 0) +
+                                  (terrainProfile.offroad > 0.2 ? 1 : 0) +
+                                  (terrainProfile.mixed > 0.2 ? 1 : 0);
+      if (userTerrainVariety > 1) {
+        score += 0.2; // Versatility bonus
+      }
+    }
+
+    return Math.min(1, score / Math.max(1, matchCount));
+  }
+
+  /**
+   * Calculate monthly distance from activities
+   */
+  private calculateMonthlyDistance(activities: any[], totalDistance: number): number {
+    if (activities.length === 0) return 0;
+
+    // Calculate time span of activities
+    const dates = activities.map(a => new Date(a.activityDate).getTime());
+    const minDate = Math.min(...dates);
+    const maxDate = Math.max(...dates);
+    const daySpan = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+    const monthSpan = Math.max(1, daySpan / 30);
+
+    return totalDistance / monthSpan;
+  }
+
+  /**
+   * Calculate use case match score (0-1 scale)
+   */
+  private calculateUseCaseScore(useCases: string, monthlyDistance: number): number {
+    let score = 0.3; // Base score for any tire
+
+    // Racing: high intensity, high distance
+    if (useCases.includes('RACING')) {
+      if (monthlyDistance > 400) score = 1.0;
+      else if (monthlyDistance > 300) score = 0.9;
+      else if (monthlyDistance > 200) score = 0.7;
+      else score = 0.5;
+    }
+
+    // Endurance: consistent, moderate to high distance
+    if (useCases.includes('ENDURANCE')) {
+      if (monthlyDistance > 300) score = Math.max(score, 1.0);
+      else if (monthlyDistance > 200) score = Math.max(score, 0.95);
+      else if (monthlyDistance > 100) score = Math.max(score, 0.8);
+      else score = Math.max(score, 0.6);
+    }
+
+    // Versatile: good for all distances
+    if (useCases.includes('VERSATILE')) {
+      score = Math.max(score, 0.85); // Always good score for versatile
+    }
+
+    // Training: moderate distances
+    if (useCases.includes('TRAINING')) {
+      if (monthlyDistance > 150 && monthlyDistance < 350) score = Math.max(score, 0.9);
+      else if (monthlyDistance > 100) score = Math.max(score, 0.8);
+      else score = Math.max(score, 0.7);
+    }
+
+    // Commuting: lower distances, regular use
+    if (useCases.includes('COMMUTING')) {
+      if (monthlyDistance < 200) score = Math.max(score, 0.85);
+      else score = Math.max(score, 0.7);
+    }
+
+    return Math.min(1, score);
+  }
+
+  /**
+   * Calculate elevation profile match score (0-1 scale)
+   */
+  private calculateElevationScore(tire: any, avgElevation: number): number {
+    let score = 0.5; // Neutral base score
+
+    // High elevation (climbing) - prefer lightweight, grippy tires
+    if (avgElevation > 500) {
+      if (tire.minWeight && tire.minWeight < 250) score = 1.0;
+      else if (tire.minWeight && tire.minWeight < 300) score = 0.9;
+      else if (tire.useCases.includes('RACING') || tire.rubberTech?.includes('GUM-X')) score = 0.8;
+      else score = 0.6;
+    }
+    // Moderate elevation
+    else if (avgElevation > 200) {
+      if (tire.useCases.includes('VERSATILE') || tire.useCases.includes('ENDURANCE')) score = 0.9;
+      else score = 0.7;
+    }
+    // Flat terrain - prefer speed, durability
+    else {
+      if (tire.useCases.includes('SPEED') || tire.useCases.includes('RACING')) score = 1.0;
+      else if (tire.useCases.includes('ENDURANCE')) score = 0.9;
+      else score = 0.7;
+    }
+
+    return score;
+  }
+
+  /**
+   * Calculate user preference match score (0-1 scale)
+   */
+  private calculatePreferenceScore(tire: any, profile: any): number {
+    if (!profile) return 0.5; // Neutral if no profile
+
+    let score = 0;
+    let criteriaCount = 0;
+
+    // Grip preference
+    if (profile.preferGrip) {
+      criteriaCount++;
+      if (profile.preferGrip > 7 && tire.rubberTech?.includes('GUM-X')) {
+        score += 1.0;
+      } else if (profile.preferGrip > 5 && tire.useCases.includes('GRIP')) {
+        score += 0.8;
+      } else {
+        score += 0.5;
+      }
+    }
+
+    // Endurance preference
+    if (profile.preferEndurance) {
+      criteriaCount++;
+      if (profile.preferEndurance > 7 && tire.useCases.includes('ENDURANCE')) {
+        score += 1.0;
+      } else if (profile.preferEndurance > 5 && tire.casingTech) {
+        score += 0.7;
+      } else {
+        score += 0.5;
+      }
+    }
+
+    // Lightness preference
+    if (profile.preferLightness) {
+      criteriaCount++;
+      if (profile.preferLightness > 7 && tire.minWeight && tire.minWeight < 250) {
+        score += 1.0;
+      } else if (profile.preferLightness > 5 && tire.minWeight && tire.minWeight < 300) {
+        score += 0.8;
+      } else {
+        score += 0.5;
+      }
+    }
+
+    // Versatility preference
+    if (profile.preferVersatility) {
+      criteriaCount++;
+      if (profile.preferVersatility > 7 && tire.useCases.includes('VERSATILE')) {
+        score += 1.0;
+      } else if (profile.preferVersatility > 5) {
+        // Check if tire supports multiple terrains
+        const terrainCount = (tire.terrainTypes.split(',') || []).length;
+        score += terrainCount > 1 ? 0.8 : 0.5;
+      } else {
+        score += 0.5;
+      }
+    }
+
+    return criteriaCount > 0 ? score / criteriaCount : 0.5;
   }
 }
