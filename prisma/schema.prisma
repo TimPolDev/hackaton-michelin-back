@@ -125,6 +125,9 @@ model Tire {
   rimType             String?
   fitting             String?
 
+  // Product gallery images (managed via admin). First one is the card thumbnail.
+  images              String[]         @default([])
+
   // --- Denormalized aggregates (computed at seed time from variants) ---
   terrainTypes        String // union of all variant terrains
   minWeight           Int? // lightest variant weight
