@@ -38,6 +38,45 @@ export class ClubsController {
     return this.clubsService.getMembers(id);
   }
 
+  @Delete(':id/leave')
+  async leaveClub(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') clubId: string,
+  ) {
+    const cyclist = await this.prisma.cyclist.findUnique({
+      where: { supabaseUserId: user.supabaseUserId },
+    });
+
+    if (!cyclist) {
+      throw new NotFoundException('Cyclist not found');
+    }
+
+    return this.clubsService.leaveClub(clubId, cyclist.id);
+  }
+
+  @Get(':id/feed')
+  async getFeed(
+    @Param('id') clubId: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    return this.clubsService.getFeed(clubId, parsedLimit);
+  }
+
+  @Get(':id/routes')
+  async getRoutes(
+    @Param('id') clubId: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 3;
+    return this.clubsService.getRoutes(clubId, parsedLimit);
+  }
+
+  @Get(':id/tire-renewals')
+  async getTireRenewals(@Param('id') clubId: string) {
+    return this.clubsService.getTireRenewals(clubId);
+  }
+
   @Post(':id/join')
   async joinClub(
     @CurrentUser() user: CurrentUserData,

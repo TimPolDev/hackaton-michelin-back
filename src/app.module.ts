@@ -14,6 +14,7 @@ import { RecommendationsModule } from './modules/recommendations/recommendations
 import { ClubsModule } from './modules/clubs/clubs.module';
 import { AmbassadorsModule } from './modules/ambassadors/ambassadors.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ActivitiesModule } from './modules/activities/activities.module';
     TiresModule,
     RecommendationsModule,
     ClubsModule,
+    EventsModule,
     AmbassadorsModule,
   ],
   controllers: [AppController],

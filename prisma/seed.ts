@@ -353,9 +353,15 @@ async function seedDemoData() {
   // Create a demo club
   const demoClub = await prisma.club.create({
     data: {
-      name: 'Vélo Club Paris',
-      description: 'Club de cyclisme route et gravel dans la région parisienne',
-      isMultiBikeType: true,
+      name: 'Lyon Gravel Riders',
+      description: 'Club de cyclisme gravel dans la région lyonnaise — sorties hebdomadaires et événements tout au long de l\'année.',
+      isMultiBikeType: false,
+      bikeTypeFilter: 'GRAVEL',
+      city: 'Lyon',
+      region: 'Auvergne-Rhône-Alpes',
+      foundedYear: 2019,
+      isPremium: true,
+      isMichelinPartner: true,
       creatorId: demoCyclist.id,
       memberships: {
         create: {
@@ -368,13 +374,120 @@ async function seedDemoData() {
 
   console.log(`✅ Created demo club: ${demoClub.name}\n`);
 
-  // Create a club invitation
-  const invitation = await prisma.clubInvitation.create({
-    data: {
+  // Create demo club events
+  const now = new Date();
+  const nextSaturday = new Date(now);
+  nextSaturday.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7 || 7));
+  nextSaturday.setHours(8, 0, 0, 0);
+
+  const nextSunday = new Date(nextSaturday);
+  nextSunday.setDate(nextSaturday.getDate() + 1);
+
+  const weekAfter = new Date(nextSaturday);
+  weekAfter.setDate(nextSaturday.getDate() + 7);
+
+  await prisma.club_events.createMany({
+    data: [
+      {
+        clubId: demoClub.id,
+        title: 'Sortie gravel — Monts du Lyonnais',
+        discipline: 'GRAVEL',
+        eventDate: nextSaturday,
+        departureLabel: 'Parking Parc de Parilly',
+        distance: 75.0,
+        elevation: 1200.0,
+        level: 'Intermédiaire',
+        bikeType: 'GRAVEL',
+        isOfficial: false,
+        requiresLicense: false,
+        createdById: demoCyclist.id,
+        updatedAt: new Date(),
+      },
+      {
+        clubId: demoClub.id,
+        title: 'Brevet officiel 100 km',
+        discipline: 'GRAVEL',
+        eventDate: nextSunday,
+        departureLabel: 'Place Bellecour, Lyon',
+        distance: 100.0,
+        elevation: 1800.0,
+        level: 'Avancé',
+        bikeType: 'GRAVEL',
+        isOfficial: true,
+        requiresLicense: true,
+        createdById: demoCyclist.id,
+        updatedAt: new Date(),
+      },
+      {
+        clubId: demoClub.id,
+        title: 'Découverte Beaujolais',
+        discipline: 'GRAVEL',
+        eventDate: weekAfter,
+        departureLabel: 'Gare de Villefranche-sur-Saône',
+        distance: 45.0,
+        elevation: 600.0,
+        level: 'Découverte',
+        bikeType: 'GRAVEL',
+        isOfficial: false,
+        requiresLicense: false,
+        createdById: demoCyclist.id,
+        updatedAt: new Date(),
+      },
+    ],
+  });
+
+  console.log(`✅ Created demo club events\n`);
+
+  // Create demo club routes
+  await prisma.club_routes.createMany({
+    data: [
+      {
+        clubId: demoClub.id,
+        title: 'Circuit des Crêtes — Pilat',
+        distanceKm: 82.5,
+        elevationGain: 1450,
+        discipline: 'GRAVEL',
+        level: 'Avancé',
+        thumbnailUrl: null,
+        completedCount: 14,
+        createdById: demoCyclist.id,
+      },
+      {
+        clubId: demoClub.id,
+        title: 'Boucle du Beaujolais',
+        distanceKm: 55.0,
+        elevationGain: 820,
+        discipline: 'GRAVEL',
+        level: 'Intermédiaire',
+        thumbnailUrl: null,
+        completedCount: 28,
+        createdById: demoCyclist.id,
+      },
+      {
+        clubId: demoClub.id,
+        title: 'Initiation Gravel — Plaine de l\'Ain',
+        distanceKm: 38.0,
+        elevationGain: 310,
+        discipline: 'GRAVEL',
+        level: 'Découverte',
+        thumbnailUrl: null,
+        completedCount: 42,
+        createdById: demoCyclist.id,
+      },
+    ],
+  });
+
+  console.log(`✅ Created demo club routes\n`);
+
+  // Create a club invitation (upsert to avoid duplicate token errors)
+  const invitation = await prisma.clubInvitation.upsert({
+    where: { token: 'demo-invitation-token' },
+    update: { expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+    create: {
       clubId: demoClub.id,
       creatorId: demoCyclist.id,
       token: 'demo-invitation-token',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   });
 

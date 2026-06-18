@@ -1,4 +1,4 @@
-import { IsString, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, IsInt, Min, Max } from 'class-validator';
 
 export class CreateClubDto {
   @IsString()
@@ -14,4 +14,18 @@ export class CreateClubDto {
   @IsOptional()
   @IsString()
   bikeTypeFilter?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1900)
+  @Max(2100)
+  foundedYear?: number;
 }
