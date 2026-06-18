@@ -580,6 +580,40 @@ export class ClubsService {
     });
   }
 
+  async getInvitationPreview(token: string) {
+    const invitation = await this.prisma.clubInvitation.findUnique({
+      where: { token },
+      include: {
+        club: {
+          include: { _count: { select: { memberships: true } } },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invalid invitation');
+    }
+    if (invitation.isRevoked) {
+      throw new ForbiddenException('Invitation has been revoked');
+    }
+    if (invitation.expiresAt < new Date()) {
+      throw new ForbiddenException('Invitation has expired');
+    }
+
+    const { club } = invitation;
+    return {
+      id: club.id,
+      name: club.name,
+      description: club.description,
+      bikeTypeFilter: club.bikeTypeFilter,
+      isMultiBikeType: club.isMultiBikeType,
+      city: club.city,
+      region: club.region,
+      memberCount: club._count.memberships,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
   async revokeInvitation(invitationId: string, cyclistId: string) {
     const invitation = await this.prisma.clubInvitation.findUnique({
       where: { id: invitationId },

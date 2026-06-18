@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClubDto } from './dto/create-club.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('clubs')
 export class ClubsController {
@@ -26,6 +27,12 @@ export class ClubsController {
     }
 
     return this.clubsService.create(cyclist.id, dto);
+  }
+
+  @Public()
+  @Get('by-invite/:token')
+  async getClubByInvite(@Param('token') token: string) {
+    return this.clubsService.getInvitationPreview(token);
   }
 
   @Get(':id')
@@ -108,7 +115,7 @@ export class ClubsController {
       throw new NotFoundException('Cyclist not found');
     }
 
-    const invitation = await this.clubsService.createInvitation(cyclist.id, clubId, expiresInDays);
+    const invitation = await this.clubsService.createInvitation(clubId, cyclist.id, expiresInDays);
 
     return {
       ...invitation,
