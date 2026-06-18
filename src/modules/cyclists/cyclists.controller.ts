@@ -16,6 +16,15 @@ export class CyclistsController {
     return this.cyclistsService.findAll();
   }
 
+  // Global leaderboard across all cyclists
+  @Get('leaderboard')
+  async getLeaderboard(
+    @Query('period') period?: string,
+    @Query('bikeType') bikeType?: string,
+  ) {
+    return this.cyclistsService.getLeaderboard(period, bikeType);
+  }
+
   @Get('me')
   async getCurrentCyclist(@CurrentUser() user: CurrentUserData) {
     return this.cyclistsService.findBySupabaseId(user.supabaseUserId);

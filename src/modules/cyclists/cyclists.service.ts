@@ -142,6 +142,85 @@ export class CyclistsService {
     };
   }
 
+  /**
+   * Global leaderboard across all cyclists, aggregated from their activities.
+   */
+  async getLeaderboard(period = 'all', bikeType?: string, limit = 100) {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'season':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      case 'all':
+      default:
+        startDate = new Date(0);
+    }
+
+    const where: any = { activityDate: { gte: startDate } };
+    if (bikeType) {
+      where.bikeType = bikeType;
+    }
+
+    const grouped = await this.prisma.activity.groupBy({
+      by: ['cyclistId'],
+      where,
+      _sum: { distance: true, elevationGain: true },
+      _count: { _all: true },
+    });
+
+    if (grouped.length === 0) {
+      return {
+        period,
+        bikeType: bikeType ?? null,
+        totalRiders: 0,
+        totalDistance: 0,
+        totalElevation: 0,
+        leaderboard: [],
+      };
+    }
+
+    const cyclists = await this.prisma.cyclist.findMany({
+      where: { id: { in: grouped.map((g) => g.cyclistId) } },
+      select: { id: true, fullName: true, isAmbassador: true },
+    });
+    const cyclistById = new Map(cyclists.map((c) => [c.id, c]));
+
+    const entries = grouped.map((g) => {
+      const cyclist = cyclistById.get(g.cyclistId);
+      return {
+        cyclistId: g.cyclistId,
+        cyclistName: cyclist?.fullName ?? 'Cycliste',
+        isAmbassador: cyclist?.isAmbassador ?? false,
+        distance: Math.round((g._sum.distance ?? 0) * 10) / 10,
+        elevation: Math.round(g._sum.elevationGain ?? 0),
+        activityCount: g._count._all,
+      };
+    });
+
+    entries.sort((a, b) => b.distance - a.distance);
+
+    const leaderboard = entries
+      .slice(0, limit)
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+    return {
+      period,
+      bikeType: bikeType ?? null,
+      totalRiders: entries.length,
+      totalDistance: Math.round(entries.reduce((s, e) => s + e.distance, 0) * 10) / 10,
+      totalElevation: entries.reduce((s, e) => s + e.elevation, 0),
+      leaderboard,
+    };
+  }
+
   async update(supabaseUserId: string, dto: UpdateCyclistDto) {
     const cyclist = await this.prisma.cyclist.findUnique({
       where: { supabaseUserId },

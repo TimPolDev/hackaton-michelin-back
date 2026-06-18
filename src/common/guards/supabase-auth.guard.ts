@@ -56,6 +56,11 @@ export class SupabaseAuthGuard implements CanActivate {
       } = await this.supabase.auth.getUser(token);
 
       if (error || !user) {
+        console.error('[SupabaseAuthGuard] getUser failed:', {
+          message: error?.message,
+          status: (error as { status?: number })?.status,
+          name: error?.name,
+        });
         throw new UnauthorizedException('Invalid token');
       }
 
@@ -67,16 +72,33 @@ export class SupabaseAuthGuard implements CanActivate {
 
       // Auto-create cyclist if doesn't exist (fallback if trigger didn't work)
       if (!cyclist) {
-        cyclist = await this.prisma.cyclist.create({
-          data: {
-            supabaseUserId: user.id,
-            email: user.email!,
-            fullName: user.user_metadata?.full_name || user.email,
-            isAdmin: false,
-            isAmbassador: false,
-          },
-          select: { isAdmin: true },
+        // A cyclist may already exist with this email but a different
+        // supabaseUserId (e.g. the Supabase auth user was recreated).
+        // In that case, re-link the existing row to the current user id
+        // instead of failing on the unique email constraint.
+        const existingByEmail = await this.prisma.cyclist.findUnique({
+          where: { email: user.email! },
+          select: { id: true, isAdmin: true },
         });
+
+        if (existingByEmail) {
+          cyclist = await this.prisma.cyclist.update({
+            where: { id: existingByEmail.id },
+            data: { supabaseUserId: user.id },
+            select: { isAdmin: true },
+          });
+        } else {
+          cyclist = await this.prisma.cyclist.create({
+            data: {
+              supabaseUserId: user.id,
+              email: user.email!,
+              fullName: user.user_metadata?.full_name || user.email,
+              isAdmin: false,
+              isAmbassador: false,
+            },
+            select: { isAdmin: true },
+          });
+        }
       }
 
       // Attach user to request
@@ -88,6 +110,10 @@ export class SupabaseAuthGuard implements CanActivate {
 
       return true;
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      console.error('[SupabaseAuthGuard] validation error:', error);
       throw new UnauthorizedException('Token validation failed');
     }
   }
