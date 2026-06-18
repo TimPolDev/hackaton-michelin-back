@@ -178,6 +178,23 @@ model TireVariant {
   @@map("tire_variants")
 }
 
+// An authorized retail partner (online shop) selling Michelin bike tires.
+// Sourced from the official retail list; no per-product URL/price for now
+// (POC), so the tire detail page links to the merchant's website.
+model Reseller {
+  id        String   @id @default(uuid())
+  name      String // display name derived from the domain ("Alltricks")
+  region    String // sales region: EUN | EUS | ECA
+  country   String // ISO-ish country code: FR, DE, UK, ES...
+  website   String   @unique // normalized https URL
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([country])
+  @@index([region])
+  @@map("resellers")
+}
+
 model Club {
   id                String           @id @default(uuid())
   name              String

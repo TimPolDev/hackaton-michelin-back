@@ -222,6 +222,67 @@ async function seedTires() {
   console.log(`   - Skipped: ${skipped}\n`);
 }
 
+interface TireImageEntry {
+  slug: string;
+  sourceUrl: string;
+  images: string[];
+}
+
+/**
+ * Populate Tire.images from the gallery photos scraped on michelin.fr.
+ * Each product page exposes its photos in the `ds__slider-list` block; the
+ * Global ID is embedded in every filename (`bi-126_..._tire_...` -> "BI-126"),
+ * which is how we map a scraped product back to a Tire row.
+ *
+ * Runs after seedTires so the Tire rows already exist. Pass --dry-run to skip
+ * the writes.
+ */
+async function seedTireImages() {
+  const dryRun = process.argv.includes('--dry-run');
+  const dataPath = path.join(__dirname, 'tire-images.json');
+  const data: Record<string, TireImageEntry> = JSON.parse(
+    fs.readFileSync(dataPath, 'utf-8'),
+  );
+
+  const entries = Object.entries(data);
+  console.log(
+    `${dryRun ? '[DRY RUN] ' : ''}🖼️  Updating tire images for ${entries.length} products...\n`,
+  );
+
+  let updated = 0;
+  let skippedNoImages = 0;
+  const notFound: string[] = [];
+
+  for (const [globalId, entry] of entries) {
+    if (!entry.images.length) {
+      skippedNoImages++;
+      continue;
+    }
+
+    const tire = await prisma.tire.findUnique({ where: { globalId } });
+    if (!tire) {
+      notFound.push(`${globalId} (${entry.slug})`);
+      continue;
+    }
+
+    if (!dryRun) {
+      await prisma.tire.update({
+        where: { globalId },
+        data: { images: entry.images },
+      });
+    }
+    updated++;
+    console.log(`  ✓ ${globalId.padEnd(8)} ${entry.images.length} images  ${entry.slug}`);
+  }
+
+  console.log(`\n${dryRun ? '[DRY RUN] ' : ''}🖼️  Tire images done.`);
+  console.log(`   - Tires updated:        ${updated}`);
+  console.log(`   - Skipped (no images):  ${skippedNoImages}`);
+  console.log(`   - Global IDs not in DB: ${notFound.length}`);
+  if (notFound.length) console.log(`     ${notFound.join(', ')}`);
+  console.log('');
+}
+
 /** Map a Strava sport_type/type to the app's BikeType (mirrors StravaService). */
 function mapStravaToBikeType(type: string, sportType?: string): string {
   const key = (sportType || type).toLowerCase();
@@ -502,6 +563,9 @@ async function main() {
 
     // Import tire catalog
     await seedTires();
+
+    // Attach scraped product gallery images to the tires we just imported
+    await seedTireImages();
 
     // Create demo data
     await seedDemoData();

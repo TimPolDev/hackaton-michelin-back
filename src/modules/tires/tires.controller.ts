@@ -10,11 +10,20 @@ export class TiresController {
   @Get()
   async getTires(
     @Query('bikeType') bikeType?: string,
-    @Query('useCase') useCase?: string,
+    @Query('segment') segment?: string,
     @Query('terrainType') terrainType?: string,
     @Query('search') search?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.tiresService.findAll({ bikeType, useCase, terrainType, search });
+    return this.tiresService.findAll({
+      bikeType,
+      segment,
+      terrainType,
+      search,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
   }
 
   @Public()

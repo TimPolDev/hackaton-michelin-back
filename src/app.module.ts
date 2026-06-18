@@ -15,6 +15,7 @@ import { ClubsModule } from './modules/clubs/clubs.module';
 import { AmbassadorsModule } from './modules/ambassadors/ambassadors.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { EventsModule } from './modules/events/events.module';
+import { ResellersModule } from './modules/resellers/resellers.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { EventsModule } from './modules/events/events.module';
     ClubsModule,
     EventsModule,
     AmbassadorsModule,
+    ResellersModule,
   ],
   controllers: [AppController],
   providers: [
