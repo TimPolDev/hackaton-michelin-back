@@ -18,9 +18,6 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
-
 # Copy prisma schema
 COPY prisma ./prisma/
 
@@ -29,6 +26,9 @@ RUN npx prisma generate
 
 # Copy application code
 COPY . .
+
+# Install dependencies
+RUN npm ci
 
 # Expose port
 EXPOSE 3001
