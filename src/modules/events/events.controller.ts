@@ -1,10 +1,25 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, NotFoundException } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
+import { EventDto, JoinEventResultDto, LeaveEventResultDto } from './dto/responses.dto';
 
+@ApiTags('Events')
+@ApiBearerAuth('supabase-jwt')
+@ApiUnauthorizedResponse({ description: 'Token manquant ou invalide' })
 @Controller()
 export class EventsController {
   constructor(
@@ -14,6 +29,14 @@ export class EventsController {
 
   // GET /clubs/:id/events?upcoming=true&limit=3
   @Get('clubs/:id/events')
+  @ApiOperation({
+    summary: 'Lister les événements d’un club',
+    description: 'Retourne les événements d’un club (à venir par défaut).',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du club' })
+  @ApiQuery({ name: 'upcoming', required: false, description: '`false` pour inclure les événements passés' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Nombre max de résultats (défaut 3)' })
+  @ApiOkResponse({ description: 'Liste d’événements', type: [EventDto] })
   async getClubEvents(
     @Param('id') clubId: string,
     @Query('upcoming') upcoming?: string,
@@ -26,6 +49,13 @@ export class EventsController {
 
   // POST /clubs/:id/events
   @Post('clubs/:id/events')
+  @ApiOperation({
+    summary: 'Créer un événement de club',
+    description: 'Crée un événement dans un club au nom du cycliste authentifié.',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du club' })
+  @ApiCreatedResponse({ description: 'Événement créé', type: EventDto })
+  @ApiNotFoundResponse({ description: 'Cycliste introuvable' })
   async createEvent(
     @CurrentUser() user: CurrentUserData,
     @Param('id') clubId: string,
@@ -44,6 +74,13 @@ export class EventsController {
 
   // POST /events/:id/join
   @Post('events/:id/join')
+  @ApiOperation({
+    summary: 'Participer à un événement',
+    description: 'Inscrit le cycliste authentifié à un événement.',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant de l’événement' })
+  @ApiCreatedResponse({ description: 'Inscription enregistrée', type: JoinEventResultDto })
+  @ApiNotFoundResponse({ description: 'Cycliste introuvable' })
   async joinEvent(
     @CurrentUser() user: CurrentUserData,
     @Param('id') eventId: string,
@@ -61,6 +98,13 @@ export class EventsController {
 
   // DELETE /events/:id/join
   @Delete('events/:id/join')
+  @ApiOperation({
+    summary: 'Se désinscrire d’un événement',
+    description: 'Retire le cycliste authentifié de la liste des participants.',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant de l’événement' })
+  @ApiOkResponse({ description: 'Désinscription enregistrée', type: LeaveEventResultDto })
+  @ApiNotFoundResponse({ description: 'Cycliste introuvable' })
   async leaveEvent(
     @CurrentUser() user: CurrentUserData,
     @Param('id') eventId: string,

@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD} from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { AdminGuard } from './common/guards/admin.guard';
@@ -44,9 +42,8 @@ import { ResellersModule } from './modules/resellers/resellers.module';
     AmbassadorsModule,
     ResellersModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard, // Global auth guard
